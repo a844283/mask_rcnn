@@ -1,0 +1,77 @@
+metadata:
+  name: tf-yara-cb-mask_rcnn
+  namespace: cvat
+  annotations:
+    name: Coffeebeans Auto Labelling
+    type: detector
+    framework: tensorflow
+    spec: |
+      [
+        { "id": 0, "name": "bg" },
+        { "id": 1, "name": "healthy" },
+        { "id": 2, "name": "black" },
+        { "id": 3, "name": "sour" },
+        { "id": 4, "name": "moldy" },
+        { "id": 5, "name": "faded_crystallized" },
+        { "id": 6, "name": "faded_streaked" },
+        { "id": 7, "name": "faded_old" },
+        { "id": 8, "name": "faded_buttery" },
+        { "id": 9, "name": "faded_overdried" },
+        { "id": 10, "name": "cut" },
+        { "id": 11, "name": "slight_insect_damage" },
+        { "id": 12, "name": "severe_insect_damage" },
+        { "id": 13, "name": "shrunk" },
+        { "id": 14, "name": "immature" },
+        { "id": 15, "name": "crushed" },
+        { "id": 16, "name": "underdried" },
+        { "id": 17, "name": "dry_cherry" },
+        { "id": 18, "name": "parchment" },
+        { "id": 19, "name": "shell" },
+        { "id": 20, "name": "token" }
+      ]
+
+spec:
+  description: |
+    An implementation of Yara Auto Annotation on Python 3, Keras, and TensorFlow.
+
+  runtime: 'python:3.6'
+  handler: main:handler
+  eventTimeout: 30s
+  env:
+    - name: MASK_RCNN_DIR
+      value: /opt/nuclio/Mask_RCNN
+
+  build:
+    image: cvat/tf.yara.cb_mask_rcnn
+    baseImage: tensorflow/tensorflow:1.13.1-py3
+
+    directives:
+      postCopy:
+        - kind: WORKDIR
+          value: /opt/nuclio
+        - kind: RUN
+          value: apt update && apt install --no-install-recommends -y git
+        - kind: RUN
+          value: pip3 install gdown
+        - kind: RUN
+          value: git clone --depth 1 https://github.com/matterport/Mask_RCNN.git
+        - kind: RUN
+          value: gdown https://drive.google.com/uc?id=1MZdBLVV36zvwVUWjP6mPpdlwYhg7rcQ5 -O Mask_RCNN/mask_rcnn_cb002.h5
+        - kind: RUN
+          value: pip3 install numpy cython pyyaml keras==2.2.4 h5py==2.10.0 scikit-image Pillow
+
+  triggers:
+    myHttpTrigger:
+      maxWorkers: 2
+      kind: 'http'
+      workerAvailabilityTimeoutMilliseconds: 10000
+      attributes:
+        port: 32010
+        maxRequestBodySize: 33554432 # 32MB
+
+  platform:
+    attributes:
+      restartPolicy:
+        name: always
+        maximumRetryCount: 3
+      mountMode: volume
